@@ -305,25 +305,42 @@ ArgoCD = ระบบที่ดู Git repo ของคุณ → ถ้า c
 ArgoCD อ่าน config จาก Git — ถ้ายังไม่ push จะเจอ error "revision main must be resolved"
 
 ```bash
-# ตั้ง remote (ถ้ายังไม่ได้ตั้ง)
-git remote add origin https://github.com/nattapoltongsom/line-worker.git
-
 # Generate Helm values (ต้อง commit ไฟล์นี้ด้วย)
 npm run generate:helm
 
-# เพิ่มทุกไฟล์ + commit + push
+# Commit + push
 git add .
-git commit -m "initial commit"
-git branch -M main
-git push -u origin main
+git commit -m "update helm values"
+git push
 ```
 
-> ต้อง push สำเร็จก่อน ArgoCD ถึงจะทำงานได้
+> repo: https://github.com/nattapoltongsom/line-worker.git (ต้อง push สำเร็จก่อน)
 
-### Step B: ติดตั้ง ArgoCD ใน Minikube
+### Step B: เปิด Minikube + Deploy Kafka
+
+ArgoCD deploy เฉพาะ **Workers** — แต่ Kafka ต้องมีอยู่ใน cluster ก่อน:
 
 ```bash
 minikube start --memory=4096 --cpus=2
+
+# Build image ให้ minikube ใช้ได้
+eval $(minikube docker-env)
+docker build -t kafka-worker:latest .
+
+# Deploy Kafka
+kubectl apply -f k8s/kafka-minikube.yaml
+kubectl wait --for=condition=ready pod/kafka --timeout=120s
+
+# สร้าง topic
+kubectl exec kafka -- /opt/kafka/bin/kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --create --if-not-exists \
+  --topic line.messages --partitions 3 --replication-factor 1
+```
+
+### Step C: ติดตั้ง ArgoCD
+
+```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
@@ -331,10 +348,10 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s
 ```
 
-### Step C: เปิด ArgoCD UI
+### Step D: เปิด ArgoCD UI
 
 ```bash
-# Port forward (ทิ้งไว้ terminal นี้)
+# Port forward (เปิด terminal ทิ้งไว้)
 kubectl port-forward svc/argocd-server -n argocd 8443:443 &
 
 # ดู password
@@ -342,30 +359,37 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d && echo
 ```
 
-เปิด https://localhost:8443 → login: `admin` / password ที่ได้
+เปิด https://localhost:8443 → login: `admin` / password จาก command ด้านบน
 
-### Step D: บอก ArgoCD ว่า repo อยู่ที่ไหน
+### Step E: สร้าง ArgoCD Application
 
 ```bash
 kubectl apply -f k8s/argocd/application.yaml
 ```
 
-ไฟล์นี้บอกว่า:
-- repo: `https://github.com/nattapoltongsom/line-worker.git`
-- branch: `main`
-- อ่าน Helm chart จาก `helm/kafka-worker/`
-- auto sync = push แล้ว deploy ให้เลย
+ArgoCD จะ:
+1. อ่าน repo `https://github.com/nattapoltongsom/line-worker.git` branch `main`
+2. อ่าน Helm chart จาก `helm/kafka-worker/` + `values-generated.json`
+3. Generate Deployments → apply ไป K8s
+4. Workers connect Kafka → ทำงาน!
 
-### Step E: ดูว่า ArgoCD sync สำเร็จ
+### Step F: ตรวจว่าทำงาน
 
-เปิด https://localhost:8443 → ดูว่า Application "kafka-workers" status เป็น **Synced + Healthy**
-
-หรือดู pods:
 ```bash
+# ดู pods
 kubectl get pods -l app=kafka-worker
+
+# ดู log
+kubectl logs -f deployment/worker-chat
 ```
 
-### Step F: ทดลองเพิ่ม worker แล้ว push (ดู ArgoCD auto deploy)
+ถ้ายังมีปัญหา:
+```bash
+kubectl get pod kafka       # Kafka ต้อง Running
+kubectl describe pod -l app=kafka-worker   # ดู events
+```
+
+### Step G: ทดลอง push แล้วดู ArgoCD auto deploy
 
 ```bash
 # สร้าง worker ใหม่
@@ -387,11 +411,11 @@ git commit -m "feat: add worker-test-argo"
 git push
 ```
 
-กลับไปดู ArgoCD UI → จะเห็น "OutOfSync" → แล้ว auto sync → Pod ใหม่ขึ้นมา!
+กลับไปดู ArgoCD UI → "OutOfSync" → auto sync → Pod ใหม่ขึ้นมา!
 
 ```bash
-# ตรวจ pods (จะเห็น worker-test-argo เพิ่มมา)
 kubectl get pods -l app=kafka-worker
+# จะเห็น worker-test-argo เพิ่มมา
 ```
 
 ### Flow ที่ใช้จริงหลังจากนี้
@@ -400,21 +424,15 @@ kubectl get pods -l app=kafka-worker
 1. แก้ src/workers/*.json (เพิ่ม/ลบ worker)
 2. npm run generate:helm
 3. git add . && git commit -m "update" && git push
-4. ArgoCD ตรวจพบ → auto sync → Deploy อัปเดต!
+4. ArgoCD auto sync → Deploy อัปเดต!
 ```
 
-**คุณไม่ต้องรัน kubectl หรือ helm เอง — ArgoCD ทำให้หมด**
-
-### ดูสถานะ
-
-- UI: https://localhost:8443 → ดู sync status
-- CLI: `kubectl get pods -l app=kafka-worker`
-
-### ปิด
+### ปิดทุกอย่าง
 
 ```bash
 kubectl delete -f k8s/argocd/application.yaml
 kubectl delete namespace argocd
+kubectl delete -f k8s/kafka-minikube.yaml
 minikube stop
 ```
 
