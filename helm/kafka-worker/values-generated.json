@@ -1,0 +1,55 @@
+{
+  "shared": {
+    "kafkaBroker": "kafka:9092",
+    "image": "kafka-worker:latest",
+    "retryCount": 3,
+    "retryBaseDelayMs": 1000,
+    "fetchTimeoutMs": 5000,
+    "pauseDurationMs": 10000
+  },
+  "workers": [
+    {
+      "name": "worker-analytics",
+      "replicas": 1,
+      "topics": [
+        "line.messages",
+        "line.events"
+      ],
+      "groupId": "worker-analytics",
+      "downstreamUrl": "http://analytics:5002/incoming",
+      "auth": {
+        "mode": "api-key",
+        "apiKeyHeader": "X-API-Key",
+        "apiKeyValue": "analytics-secret-key-12345"
+      }
+    },
+    {
+      "name": "worker-chat",
+      "replicas": 1,
+      "topics": [
+        "line.messages"
+      ],
+      "groupId": "worker-chat",
+      "downstreamUrl": "http://chat:5001/incoming",
+      "auth": {
+        "mode": "none"
+      }
+    },
+    {
+      "name": "worker-notification",
+      "replicas": 1,
+      "topics": [
+        "line.messages"
+      ],
+      "groupId": "worker-notification",
+      "downstreamUrl": "http://notification:5003/incoming",
+      "auth": {
+        "mode": "oauth2",
+        "oauth2TokenUrl": "http://auth-server:4000/oauth2/token",
+        "oauth2ClientId": "notification-worker",
+        "oauth2ClientSecret": "super-secret-123",
+        "oauth2Scope": "notify:send"
+      }
+    }
+  ]
+}
