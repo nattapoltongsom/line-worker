@@ -1,0 +1,8 @@
+{
+  "kafkaBroker": "kafka:9092",
+  "image": "kafka-worker:latest",
+  "retryCount": 3,
+  "retryBaseDelayMs": 1000,
+  "fetchTimeoutMs": 5000,
+  "pauseDurationMs": 10000
+}

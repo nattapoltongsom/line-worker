@@ -1,0 +1,10 @@
+{
+  "name": "worker-chat",
+  "replicas": 1,
+  "topics": ["line.messages"],
+  "groupId": "worker-chat",
+  "downstreamUrl": "http://chat:5001/incoming",
+  "auth": {
+    "mode": "none"
+  }
+}

@@ -1,0 +1,21 @@
+# Default values — ถูก override ด้วย workers.json ตอน deploy
+# ไม่ต้องแก้ไฟล์นี้ — แก้ workers.json อย่างเดียว
+#
+# Deploy: helm upgrade kafka-workers ./helm/kafka-worker -f workers.json
+
+shared:
+  kafkaBroker: "kafka:9092"
+  image: "kafka-worker:latest"
+  retryCount: 3
+  retryBaseDelayMs: 1000
+  fetchTimeoutMs: 5000
+  pauseDurationMs: 10000
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "100m"
+
+workers: []

@@ -1,0 +1,4 @@
+node_modules
+dist
+docker-compose.workers.yml
+helm/kafka-worker/values-generated.json

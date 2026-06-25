@@ -1,0 +1,31 @@
+# ArgoCD Application — ให้ ArgoCD watch repo แล้ว deploy อัตโนมัติ
+# เมื่อมีการ push workers file ใหม่ + generate helm values → ArgoCD sync ให้
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka-workers
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    # ──── ชี้ไปที่ Helm chart ใน repo ────
+    repoURL: https://github.com/nattapoltongsom/line-worker.git
+    targetRevision: main
+    path: helm/kafka-worker
+
+    # ใช้ values-generated.json ที่ generate จาก src/workers/
+    helm:
+      valueFiles:
+        - values-generated.json
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka-workers
+
+  syncPolicy:
+    automated:
+      prune: true       # ลบ resource ที่ไม่มีใน config แล้ว (เช่น ลบ worker file)
+      selfHeal: true    # ถ้าใครแก้ K8s ตรง ๆ ArgoCD จะ revert กลับ
+    syncOptions:
+      - CreateNamespace=true

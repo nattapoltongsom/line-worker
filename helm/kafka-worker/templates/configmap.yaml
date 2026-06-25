@@ -1,0 +1,17 @@
+{{/*
+  ConfigMap เก็บ config files — mount เป็น directory ให้ทุก pod
+  app อ่าน shared.json + {WORKER_NAME}.json จาก directory
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-workers-config
+  labels:
+    {{- include "kafka-worker.labels" . | nindent 4 }}
+data:
+  shared.json: |
+    {{ .Values.shared | toJson }}
+  {{- range $worker := .Values.workers }}
+  {{ $worker.name }}.json: |
+    {{ $worker | toJson }}
+  {{- end }}

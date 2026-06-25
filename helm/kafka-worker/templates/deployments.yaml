@@ -1,0 +1,77 @@
+{{/*
+  Auto-generate 1 Deployment ต่อ worker
+  ทุก pod mount ConfigMap เป็น directory — app อ่าน shared.json + {WORKER_NAME}.json
+*/}}
+{{- $shared := .Values.shared -}}
+{{- $imageparts := splitList ":" ($shared.image | default "kafka-worker:latest") -}}
+{{- $repo := index $imageparts 0 -}}
+{{- $tag := "latest" -}}
+{{- if gt (len $imageparts) 1 -}}
+  {{- $tag = index $imageparts 1 -}}
+{{- end -}}
+
+{{- range $worker := .Values.workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $worker.name }}
+  labels:
+    {{- include "kafka-worker.labels" $ | nindent 4 }}
+    app: kafka-worker
+    worker: {{ $worker.name }}
+spec:
+  replicas: {{ $worker.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: kafka-worker
+      worker: {{ $worker.name }}
+  template:
+    metadata:
+      labels:
+        app: kafka-worker
+        worker: {{ $worker.name }}
+      annotations:
+        checksum/config: {{ $.Values | toJson | sha256sum }}
+    spec:
+      containers:
+        - name: {{ $worker.name }}
+          image: "{{ $repo }}:{{ $tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WORKER_NAME
+              value: {{ $worker.name | quote }}
+            - name: WORKERS_CONFIG_DIR
+              value: "/config"
+          volumeMounts:
+            - name: workers-config
+              mountPath: /config
+              readOnly: true
+          resources:
+            {{- if $shared.resources }}
+            {{- toYaml $shared.resources | nindent 12 }}
+            {{- else }}
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            {{- end }}
+          livenessProbe:
+            exec:
+              command: ["node", "-e", "process.exit(0)"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["node", "-e", "process.exit(0)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: workers-config
+          configMap:
+            name: kafka-workers-config
+      restartPolicy: Always
+{{- end }}

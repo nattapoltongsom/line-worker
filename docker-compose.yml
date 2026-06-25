@@ -1,0 +1,107 @@
+# docker-compose.yml — Infra services (Kafka, UI, mocks)
+# Worker services ถูก generate อัตโนมัติจาก workers.json
+#
+# รัน: npm run dev
+#   (= npm run generate && docker compose -f docker-compose.yml -f docker-compose.workers.yml up --build)
+
+services:
+  # ─────────────────────────────────────────────
+  # Kafka (KRaft mode)
+  # ─────────────────────────────────────────────
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # ─────────────────────────────────────────────
+  # Kafka Init — สร้าง topics
+  # ─────────────────────────────────────────────
+  kafka-init:
+    image: apache/kafka:latest
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: >
+      /bin/bash -c "
+        echo '⏳ Creating topics...'
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic line.messages --partitions 3 --replication-factor 1
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic line.events --partitions 3 --replication-factor 1
+        echo '✅ Topics created!'
+      "
+
+  # ─────────────────────────────────────────────
+  # Kafka UI
+  # ─────────────────────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Mock Auth Server
+  # ─────────────────────────────────────────────
+  auth-server:
+    build: ./mock
+    container_name: auth-server
+    command: ["npx", "tsx", "auth-server.ts"]
+    environment:
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+
+  # ─────────────────────────────────────────────
+  # Mock Downstream Services
+  # ─────────────────────────────────────────────
+  chat:
+    build: ./mock
+    container_name: mock-chat
+    environment:
+      PORT: "5001"
+      SERVICE_NAME: mock-chat
+    ports:
+      - "5001:5001"
+
+  analytics:
+    build: ./mock
+    container_name: mock-analytics
+    environment:
+      PORT: "5002"
+      SERVICE_NAME: mock-analytics
+    ports:
+      - "5002:5002"
+
+  notification:
+    build: ./mock
+    container_name: mock-notification
+    environment:
+      PORT: "5003"
+      SERVICE_NAME: mock-notification
+    ports:
+      - "5003:5003"

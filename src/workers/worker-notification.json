@@ -1,0 +1,14 @@
+{
+  "name": "worker-notification",
+  "replicas": 1,
+  "topics": ["line.messages"],
+  "groupId": "worker-notification",
+  "downstreamUrl": "http://notification:5003/incoming",
+  "auth": {
+    "mode": "oauth2",
+    "oauth2TokenUrl": "http://auth-server:4000/oauth2/token",
+    "oauth2ClientId": "notification-worker",
+    "oauth2ClientSecret": "super-secret-123",
+    "oauth2Scope": "notify:send"
+  }
+}

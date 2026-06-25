@@ -1,0 +1,8 @@
+apiVersion: v2
+name: kafka-worker
+description: >
+  Generic Kafka Consumer Worker.
+  Config ทั้งหมดอยู่ใน workers.json ไฟล์เดียว.
+  Deploy: helm upgrade kafka-workers ./helm/kafka-worker -f workers.json
+version: 1.0.0
+appVersion: "1.0.0"
