@@ -1,6 +1,6 @@
 {
   "shared": {
-    "kafkaBroker": "kafka:9092",
+    "kafkaBroker": "host.minikube.internal:9094",
     "image": "kafka-worker:latest",
     "retryCount": 3,
     "retryBaseDelayMs": 1000,
@@ -16,7 +16,7 @@
         "line.events"
       ],
       "groupId": "worker-analytics",
-      "downstreamUrl": "http://analytics:5002/incoming",
+      "downstreamUrl": "http://host.minikube.internal:5002/incoming",
       "auth": {
         "mode": "api-key",
         "apiKeyHeader": "X-API-Key",
@@ -30,7 +30,7 @@
         "line.messages"
       ],
       "groupId": "worker-chat",
-      "downstreamUrl": "http://chat:5001/incoming",
+      "downstreamUrl": "http://host.minikube.internal:5001/incoming",
       "auth": {
         "mode": "none"
       }
@@ -42,13 +42,9 @@
         "line.messages"
       ],
       "groupId": "worker-notification",
-      "downstreamUrl": "http://notification:5003/incoming",
+      "downstreamUrl": "http://host.minikube.internal:5003/incoming",
       "auth": {
-        "mode": "oauth2",
-        "oauth2TokenUrl": "http://auth-server:4000/oauth2/token",
-        "oauth2ClientId": "notification-worker",
-        "oauth2ClientSecret": "super-secret-123",
-        "oauth2Scope": "notify:send"
+        "mode": "none"
       }
     }
   ]

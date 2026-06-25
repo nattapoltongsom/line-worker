@@ -1,12 +1,17 @@
-# docker-compose.yml — Infra services (Kafka, UI, mocks)
-# Worker services ถูก generate อัตโนมัติจาก workers.json
+# dependency/docker-compose.yml
+# ─────────────────────────────────────────────────────────────────
+# Kafka + Kafka UI + Mock Downstream
+# ใช้ตัวเดียวทั้ง local dev และ deploy test
 #
-# รัน: npm run dev
-#   (= npm run generate && docker compose -f docker-compose.yml -f docker-compose.workers.yml up --build)
+# เปิด:   docker compose up -d
+# ปิด:    docker compose down
+# ดู log: docker compose logs -f
 
 services:
   # ─────────────────────────────────────────────
-  # Kafka (KRaft mode)
+  # Kafka (KRaft mode, single node)
+  # INTERNAL listener (kafka:9092) สำหรับ container-to-container
+  # EXTERNAL listener (localhost:9094) สำหรับ host machine
   # ─────────────────────────────────────────────
   kafka:
     image: apache/kafka:latest
@@ -14,10 +19,11 @@ services:
     environment:
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
@@ -25,7 +31,7 @@ services:
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     ports:
-      - "9092:9092"
+      - "9094:9094"
     healthcheck:
       test: /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1
       interval: 10s
@@ -33,7 +39,7 @@ services:
       retries: 10
 
   # ─────────────────────────────────────────────
-  # Kafka Init — สร้าง topics
+  # Kafka Init — สร้าง topics อัตโนมัติ
   # ─────────────────────────────────────────────
   kafka-init:
     image: apache/kafka:latest
@@ -50,7 +56,7 @@ services:
       "
 
   # ─────────────────────────────────────────────
-  # Kafka UI
+  # Kafka UI — ดู topics/messages ผ่าน browser
   # ─────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -65,43 +71,41 @@ services:
         condition: service_healthy
 
   # ─────────────────────────────────────────────
-  # Mock Auth Server
+  # Mock Downstream — จำลอง REST API ปลายทาง
+  # Worker จะ POST message มาที่นี่
   # ─────────────────────────────────────────────
-  auth-server:
-    build: ./mock
-    container_name: auth-server
-    command: ["npx", "tsx", "auth-server.ts"]
-    environment:
-      PORT: "4000"
-    ports:
-      - "4000:4000"
-
-  # ─────────────────────────────────────────────
-  # Mock Downstream Services
-  # ─────────────────────────────────────────────
-  chat:
-    build: ./mock
+  mock-chat:
+    build: ./mock-downstream
     container_name: mock-chat
     environment:
       PORT: "5001"
       SERVICE_NAME: mock-chat
     ports:
       - "5001:5001"
+    depends_on:
+      kafka:
+        condition: service_healthy
 
-  analytics:
-    build: ./mock
+  mock-analytics:
+    build: ./mock-downstream
     container_name: mock-analytics
     environment:
       PORT: "5002"
       SERVICE_NAME: mock-analytics
     ports:
       - "5002:5002"
+    depends_on:
+      kafka:
+        condition: service_healthy
 
-  notification:
-    build: ./mock
+  mock-notification:
+    build: ./mock-downstream
     container_name: mock-notification
     environment:
       PORT: "5003"
       SERVICE_NAME: mock-notification
     ports:
       - "5003:5003"
+    depends_on:
+      kafka:
+        condition: service_healthy

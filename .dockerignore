@@ -3,6 +3,7 @@ dist
 .git
 .gitignore
 *.md
-docker-compose.yml
 k8s
-mock
+helm
+scripts
+dependency

@@ -92,15 +92,10 @@ function readJson<T>(filePath: string): T {
  *   {WORKERS_CONFIG_DIR}/{WORKER_NAME}.json  → worker config
  */
 export function loadConfig(): WorkerConfig {
-  const configDir = process.env['WORKERS_CONFIG_DIR'];
-  const workerName = process.env['WORKER_NAME'];
+  const configDir = process.env['WORKERS_CONFIG_DIR'] || './src/workers';
+  const workerName = process.env['WORKER_NAME'] || 'worker-chat';
 
-  if (!configDir) {
-    throw new Error('❌ Missing WORKERS_CONFIG_DIR environment variable');
-  }
-  if (!workerName) {
-    throw new Error('❌ Missing WORKER_NAME environment variable');
-  }
+  console.log(`🔧 WORKER_NAME=${workerName}, WORKERS_CONFIG_DIR=${configDir}`);
 
   // อ่าน shared.json
   const sharedPath = join(configDir, 'shared.json');

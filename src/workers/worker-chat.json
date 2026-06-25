@@ -3,7 +3,7 @@
   "replicas": 1,
   "topics": ["line.messages"],
   "groupId": "worker-chat",
-  "downstreamUrl": "http://chat:5001/incoming",
+  "downstreamUrl": "http://localhost:5001/incoming",
   "auth": {
     "mode": "none"
   }

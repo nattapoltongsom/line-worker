@@ -1,0 +1,12 @@
+{
+  "name": "mock-downstream",
+  "version": "1.0.0",
+  "description": "Mock downstream server — รับ POST จาก worker แล้ว log",
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx server.ts"
+  },
+  "dependencies": {
+    "tsx": "4.16.2"
+  }
+}

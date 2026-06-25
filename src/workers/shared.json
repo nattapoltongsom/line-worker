@@ -1,5 +1,5 @@
 {
-  "kafkaBroker": "kafka:9092",
+  "kafkaBroker": "localhost:9094",
   "image": "kafka-worker:latest",
   "retryCount": 3,
   "retryBaseDelayMs": 1000,

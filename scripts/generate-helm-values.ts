@@ -1,12 +1,12 @@
 #!/usr/bin/env npx tsx
 /**
  * อ่าน src/workers/ directory แล้ว merge เป็น Helm values format
- * Output: helm/kafka-worker/values-generated.yaml
+ * สำหรับ deploy ขึ้น K8s — แปลง localhost → host.minikube.internal
+ * เพื่อให้ pod ใน cluster connect กลับมาที่ dependency/ บน host ได้
+ *
+ * Output: helm/kafka-worker/values-generated.json
  *
  * ใช้: npm run generate:helm
- *
- * Helm deploy:
- *   helm upgrade kafka-workers ./helm/kafka-worker -f helm/kafka-worker/values-generated.yaml
  */
 
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -17,28 +17,52 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
 const workersDir = resolve(rootDir, 'src/workers');
 
-// อ่าน shared.json
-const shared = JSON.parse(readFileSync(join(workersDir, 'shared.json'), 'utf-8'));
+/**
+ * แปลง localhost → host.minikube.internal
+ * เพื่อให้ K8s pod connect กลับมาที่ host machine
+ */
+function toK8sHost(value: string): string {
+  return value.replace(/localhost/g, 'host.minikube.internal');
+}
 
-// Scan worker files
+// อ่าน shared.json — แปลง kafkaBroker
+const shared = JSON.parse(readFileSync(join(workersDir, 'shared.json'), 'utf-8'));
+shared.kafkaBroker = toK8sHost(shared.kafkaBroker);
+
+// Scan worker files — แปลง downstreamUrl
 const workerFiles = readdirSync(workersDir)
   .filter((f) => f.endsWith('.json') && f !== 'shared.json')
   .sort();
 
 const workers = workerFiles.map((file) => {
-  return JSON.parse(readFileSync(join(workersDir, file), 'utf-8'));
+  const worker = JSON.parse(readFileSync(join(workersDir, file), 'utf-8'));
+  worker.downstreamUrl = toK8sHost(worker.downstreamUrl);
+
+  // แปลง auth URLs ที่มี localhost ด้วย (เช่น oauth2TokenUrl)
+  if (worker.auth) {
+    if (worker.auth.oauth2TokenUrl) {
+      worker.auth.oauth2TokenUrl = toK8sHost(worker.auth.oauth2TokenUrl);
+    }
+    if (worker.auth.customTokenUrl) {
+      worker.auth.customTokenUrl = toK8sHost(worker.auth.customTokenUrl);
+    }
+  }
+
+  return worker;
 });
 
-// สร้าง merged config (เหมือน format เดิมที่ Helm ต้องการ)
+// สร้าง merged config
 const merged = { shared, workers };
 
-// Output เป็น JSON (Helm รองรับ -f *.json ได้)
+// Output
 const outputPath = resolve(rootDir, 'helm/kafka-worker/values-generated.json');
 writeFileSync(outputPath, JSON.stringify(merged, null, 2));
 
 console.log(`✅ Generated ${outputPath}`);
-console.log(`   Shared: src/workers/shared.json`);
-console.log(`   Workers: ${workers.map((w: { name: string }) => w.name).join(', ')}`);
+console.log(`   Shared: kafkaBroker → ${shared.kafkaBroker}`);
+console.log(`   Workers: ${workers.map((w: { name: string; downstreamUrl: string }) => `${w.name} → ${w.downstreamUrl}`).join('\n             ')}`);
+console.log('');
+console.log('   ℹ️  localhost ถูกแปลงเป็น host.minikube.internal สำหรับ K8s');
 console.log('');
 console.log('Deploy:');
 console.log('  helm upgrade --install kafka-workers ./helm/kafka-worker -f helm/kafka-worker/values-generated.json');

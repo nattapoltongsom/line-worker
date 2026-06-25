@@ -3,7 +3,7 @@
   "replicas": 1,
   "topics": ["line.messages", "line.events"],
   "groupId": "worker-analytics",
-  "downstreamUrl": "http://analytics:5002/incoming",
+  "downstreamUrl": "http://localhost:5002/incoming",
   "auth": {
     "mode": "api-key",
     "apiKeyHeader": "X-API-Key",

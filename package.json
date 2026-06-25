@@ -4,17 +4,10 @@
   "description": "Generic Kafka consumer worker — consume จาก topic แล้ว forward ไป downstream URL",
   "type": "module",
   "scripts": {
-    "dev": "npm run generate && docker compose -f docker-compose.yml -f docker-compose.workers.yml up --build",
-    "dev:down": "docker compose -f docker-compose.yml -f docker-compose.workers.yml down",
-    "dev:logs": "docker compose -f docker-compose.yml -f docker-compose.workers.yml logs -f",
-    "test:send": "echo '{\"userId\":\"U001\",\"text\":\"Hello!\"}' | docker exec -i kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic line.messages",
-    "test:stats": "echo '--- chat ---' && curl -s http://localhost:5001/stats | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log('messages:',d.totalMessages)\" && echo '--- analytics ---' && curl -s http://localhost:5002/stats | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log('messages:',d.totalMessages)\" && echo '--- notification ---' && curl -s http://localhost:5003/stats | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log('messages:',d.totalMessages)\"",
-    "test:reset": "curl -s -X POST http://localhost:5001/reset > /dev/null && curl -s -X POST http://localhost:5002/reset > /dev/null && curl -s -X POST http://localhost:5003/reset > /dev/null && echo 'Reset all mock downstreams'",
-    "generate": "npx tsx scripts/generate-compose.ts",
-    "generate:helm": "npx tsx scripts/generate-helm-values.ts",
-    "deploy": "npm run generate:helm && helm upgrade --install kafka-workers ./helm/kafka-worker -f helm/kafka-worker/values-generated.json",
     "start": "node --import tsx src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "generate:helm": "npx tsx scripts/generate-helm-values.ts",
+    "deploy": "npm run generate:helm && helm upgrade --install kafka-workers ./helm/kafka-worker -f helm/kafka-worker/values-generated.json"
   },
   "dependencies": {
     "kafkajs": "2.2.4"
@@ -22,8 +15,6 @@
   "devDependencies": {
     "typescript": "5.5.4",
     "tsx": "4.16.2",
-    "@types/node": "20.14.11",
-    "express": "4.19.2",
-    "@types/express": "4.17.21"
+    "@types/node": "20.14.11"
   }
 }
