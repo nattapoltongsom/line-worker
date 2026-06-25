@@ -1,6 +1,6 @@
 {
   "shared": {
-    "kafkaBroker": "host.minikube.internal:9094",
+    "kafkaBroker": "host.minikube.internal:9095",
     "image": "kafka-worker:latest",
     "retryCount": 3,
     "retryBaseDelayMs": 1000,

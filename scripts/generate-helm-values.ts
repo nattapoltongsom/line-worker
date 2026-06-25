@@ -18,11 +18,13 @@ const rootDir = resolve(__dirname, '..');
 const workersDir = resolve(rootDir, 'src/workers');
 
 /**
- * แปลง localhost → host.minikube.internal
- * เพื่อให้ K8s pod connect กลับมาที่ host machine
+ * แปลง localhost → host.minikube.internal + port 9094 → 9095 สำหรับ Kafka
+ * เพื่อให้ K8s pod connect กลับมาที่ host machine ผ่าน MINIKUBE listener
  */
 function toK8sHost(value: string): string {
-  return value.replace(/localhost/g, 'host.minikube.internal');
+  return value
+    .replace(/localhost:9094/g, 'host.minikube.internal:9095')
+    .replace(/localhost/g, 'host.minikube.internal');
 }
 
 // อ่าน shared.json — แปลง kafkaBroker
