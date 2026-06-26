@@ -5,6 +5,10 @@
   "groupId": "worker-notification",
   "downstreamUrl": "http://localhost:5003/incoming",
   "auth": {
-    "mode": "none"
+    "mode": "oauth2",
+    "oauth2TokenUrl": "${NOTIFICATION_OAUTH_TOKEN_URL}",
+    "oauth2ClientId": "${NOTIFICATION_OAUTH_CLIENT_ID}",
+    "oauth2ClientSecret": "${NOTIFICATION_OAUTH_CLIENT_SECRET}",
+    "oauth2Scope": "notify:send"
   }
 }

@@ -20,7 +20,7 @@
       "auth": {
         "mode": "api-key",
         "apiKeyHeader": "X-API-Key",
-        "apiKeyValue": "analytics-secret-key-12345"
+        "apiKeyValue": "${ANALYTICS_API_KEY}"
       }
     },
     {
@@ -44,8 +44,18 @@
       "groupId": "worker-notification",
       "downstreamUrl": "http://host.minikube.internal:5003/incoming",
       "auth": {
-        "mode": "none"
+        "mode": "oauth2",
+        "oauth2TokenUrl": "${NOTIFICATION_OAUTH_TOKEN_URL}",
+        "oauth2ClientId": "${NOTIFICATION_OAUTH_CLIENT_ID}",
+        "oauth2ClientSecret": "${NOTIFICATION_OAUTH_CLIENT_SECRET}",
+        "oauth2Scope": "notify:send"
       }
     }
-  ]
+  ],
+  "secrets": {
+    "ANALYTICS_API_KEY": "analytics-secret-key-12345",
+    "NOTIFICATION_OAUTH_TOKEN_URL": "http://localhost:4000/oauth2/token",
+    "NOTIFICATION_OAUTH_CLIENT_ID": "notification-worker",
+    "NOTIFICATION_OAUTH_CLIENT_SECRET": "super-secret-123"
+  }
 }

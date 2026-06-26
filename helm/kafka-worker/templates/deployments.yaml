@@ -43,6 +43,11 @@ spec:
               value: {{ $worker.name | quote }}
             - name: WORKERS_CONFIG_DIR
               value: "/config"
+          {{- if $.Values.secrets }}
+          envFrom:
+            - secretRef:
+                name: kafka-workers-secrets
+          {{- end }}
           volumeMounts:
             - name: workers-config
               mountPath: /config

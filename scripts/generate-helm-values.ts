@@ -54,7 +54,31 @@ const workers = workerFiles.map((file) => {
 });
 
 // สร้าง merged config
-const merged = { shared, workers };
+const merged: Record<string, unknown> = { shared, workers };
+
+// รวม secrets จาก .env (ถ้ามี) — สำหรับ deploy ขึ้น K8s
+// อ่าน .env file แล้วใส่เป็น secrets section ใน values
+const envPath = resolve(rootDir, '.env');
+try {
+  const envContent = readFileSync(envPath, 'utf-8');
+  const secrets: Record<string, string> = {};
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIndex = trimmed.indexOf('=');
+    if (eqIndex === -1) continue;
+    const key = trimmed.slice(0, eqIndex).trim();
+    const value = trimmed.slice(eqIndex + 1).trim();
+    secrets[key] = value;
+  }
+  if (Object.keys(secrets).length > 0) {
+    merged.secrets = secrets;
+    console.log(`   Secrets: ${Object.keys(secrets).join(', ')} (from .env)`);
+  }
+} catch {
+  // ไม่มี .env file — ไม่เป็นไร, deploy โดยไม่มี secrets
+  console.log('   Secrets: ไม่มี .env file — secrets จะไม่ถูก inject');
+}
 
 // Output
 const outputPath = resolve(rootDir, 'helm/kafka-worker/values-generated.json');

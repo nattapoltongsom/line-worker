@@ -7,6 +7,6 @@
   "auth": {
     "mode": "api-key",
     "apiKeyHeader": "X-API-Key",
-    "apiKeyValue": "analytics-secret-key-12345"
+    "apiKeyValue": "${ANALYTICS_API_KEY}"
   }
 }

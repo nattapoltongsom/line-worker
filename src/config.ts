@@ -67,6 +67,23 @@ interface WorkerEntry {
 }
 
 /**
+ * แทนที่ ${VAR_NAME} ด้วยค่าจาก environment variable
+ * ถ้าไม่เจอ env var → throw error ชัดเจน
+ * ถ้าไม่มี ${...} → คืนค่าเดิม
+ */
+function resolveEnvVars(value: string | undefined): string | undefined {
+  if (!value) return value;
+
+  return value.replace(/\$\{([^}]+)\}/g, (match, varName: string) => {
+    const envValue = process.env[varName];
+    if (envValue === undefined) {
+      throw new Error(`❌ Missing environment variable: ${varName} (referenced in config as \${${varName}})`);
+    }
+    return envValue;
+  });
+}
+
+/**
  * อ่าน JSON file อย่างปลอดภัย — throw error ชัดเจนถ้าอ่านไม่ได้
  */
 function readJson<T>(filePath: string): T {
@@ -121,11 +138,12 @@ export function loadConfig(): WorkerConfig {
   console.log(`   Worker: ${workerPath}`);
 
   // สร้าง config — worker override > shared > default
+  // resolveEnvVars แทนที่ ${VAR} ด้วย environment variable
   return {
-    kafkaBroker: shared.kafkaBroker,
+    kafkaBroker: resolveEnvVars(shared.kafkaBroker) || shared.kafkaBroker,
     kafkaTopics: entry.topics,
     kafkaGroupId: entry.groupId,
-    downstreamUrl: entry.downstreamUrl,
+    downstreamUrl: resolveEnvVars(entry.downstreamUrl) || entry.downstreamUrl,
     retryCount: entry.retryCount ?? shared.retryCount ?? 3,
     retryBaseDelayMs: entry.retryBaseDelayMs ?? shared.retryBaseDelayMs ?? 1000,
     fetchTimeoutMs: entry.fetchTimeoutMs ?? shared.fetchTimeoutMs ?? 5000,
@@ -133,18 +151,18 @@ export function loadConfig(): WorkerConfig {
     serviceName: entry.name,
     auth: {
       mode: entry.auth.mode as AuthMode,
-      apiKeyHeader: entry.auth.apiKeyHeader,
-      apiKeyValue: entry.auth.apiKeyValue,
-      oauth2TokenUrl: entry.auth.oauth2TokenUrl,
-      oauth2ClientId: entry.auth.oauth2ClientId,
-      oauth2ClientSecret: entry.auth.oauth2ClientSecret,
-      oauth2Scope: entry.auth.oauth2Scope,
+      apiKeyHeader: resolveEnvVars(entry.auth.apiKeyHeader),
+      apiKeyValue: resolveEnvVars(entry.auth.apiKeyValue),
+      oauth2TokenUrl: resolveEnvVars(entry.auth.oauth2TokenUrl),
+      oauth2ClientId: resolveEnvVars(entry.auth.oauth2ClientId),
+      oauth2ClientSecret: resolveEnvVars(entry.auth.oauth2ClientSecret),
+      oauth2Scope: resolveEnvVars(entry.auth.oauth2Scope),
       oauth2ExtraParams: entry.auth.oauth2ExtraParams,
-      customTokenUrl: entry.auth.customTokenUrl,
+      customTokenUrl: resolveEnvVars(entry.auth.customTokenUrl),
       customTokenBody: entry.auth.customTokenBody,
-      customTokenField: entry.auth.customTokenField,
-      customTokenHeader: entry.auth.customTokenHeader,
-      customTokenPrefix: entry.auth.customTokenPrefix,
+      customTokenField: resolveEnvVars(entry.auth.customTokenField),
+      customTokenHeader: resolveEnvVars(entry.auth.customTokenHeader),
+      customTokenPrefix: resolveEnvVars(entry.auth.customTokenPrefix),
       customTokenExpiresIn: entry.auth.customTokenExpiresIn,
     },
   };
